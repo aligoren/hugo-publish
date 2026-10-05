@@ -18,6 +18,9 @@ env:
   CARGO_TERM_COLOR: always
   # Hugo used by the Rust integration tests (extended edition).
   HUGO_VERSION: 0.167.0
+  # Full debug info makes every test binary (each links Tauri and WebKit) hundreds of MB and fills
+  # the Linux runner's disk; line tables still give file and line numbers in backtraces.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
   test:
@@ -55,6 +58,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+
+      # The Ubuntu runner starts with ~14 GB free; these preinstalled SDKs are not used here.
+      - name: Free disk space (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          df -h /
 
       # https://v2.tauri.app/start/prerequisites/#linux (Debian/Ubuntu)
       - name: Install Linux system dependencies
