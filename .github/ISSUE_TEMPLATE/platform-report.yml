@@ -1,0 +1,105 @@
+name: Platform report (macOS / Linux)
+description: Tell us how Hugo Publisher runs on your macOS or Linux machine, good or bad.
+title: "[platform] "
+labels: ["platform-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing! The maintainers develop on Windows and have no Mac, so reports like this are how macOS and Linux support gets checked. "Everything works" is a useful report too.
+
+        Please do not paste private content (site files, tokens, e-mail addresses) into the logs.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      description: For Linux, include the distribution, desktop environment and X11 or Wayland.
+      placeholder: "macOS 15.4 / Ubuntu 24.04, GNOME, Wayland"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: arch
+    attributes:
+      label: CPU architecture
+      options:
+        - Apple Silicon (arm64)
+        - Intel or AMD (x86_64)
+        - ARM64 (Linux)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install it?
+      options:
+        - .dmg
+        - .app.tar.gz
+        - AppImage
+        - .deb
+        - .rpm
+        - Built from source (scripts/build.sh)
+        - Development build (npm run tauri dev)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Hugo Publisher version or commit
+      placeholder: "v0.1.0 or a commit hash"
+    validations:
+      required: true
+
+  - type: input
+    id: hugo-version
+    attributes:
+      label: Hugo version
+      description: Output of `hugo version`, if Hugo is installed.
+
+  - type: textarea
+    id: install-experience
+    attributes:
+      label: Installing and first launch
+      description: Did the steps in the README work (macOS "Open Anyway" or `xattr`, AppImage `chmod +x`, package install)? Anything confusing?
+
+  - type: textarea
+    id: works
+    attributes:
+      label: What works
+      placeholder: "Opened my site, edited a post, the preview showed the change..."
+
+  - type: textarea
+    id: broken
+    attributes:
+      label: What does not work
+      description: Steps to reproduce, what you expected and what happened. Screenshots help.
+      placeholder: |
+        1. Open a site
+        2. ...
+        Expected: ...
+        Actual: ...
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Start the app from a terminal and paste what it prints.
+        macOS: `"/Applications/Hugo Publisher.app/Contents/MacOS/"*`. Linux: run the AppImage, or the installed binary, from a terminal.
+      render: text

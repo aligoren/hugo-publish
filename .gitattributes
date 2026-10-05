@@ -1,0 +1,7 @@
+# Source files use LF everywhere; PowerShell scripts use CRLF.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+
+# Test fixtures are compared byte for byte (CRLF, BOM, mixed endings are deliberate).
+fixtures/** -text
+src-tauri/tests/fixtures/** -text

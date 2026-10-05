@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the main window only. File and process access goes through the app's own Rust commands, never through fs/shell plugins. The preview window gets no capabilities.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "dialog:allow-open",
+    "dialog:allow-confirm",
+    "dialog:allow-save",
+    "opener:default",
+    "notification:default",
+    "store:default",
+    "updater:default",
+    "process:allow-restart"
+  ]
+}

@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800;
+  }
+
+  .btn-primary {
+    @apply border-sky-700 bg-sky-700 text-white hover:bg-sky-800 dark:border-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500;
+  }
+
+  .field {
+    @apply flex flex-col gap-1;
+  }
+
+  /* The editor's writing face (see features/editor/theme.ts), e.g. for the title above the text. */
+  .hp-writing-font {
+    font-family: var(--hp-editor-font, "Charter", "Bitstream Charter", "Sitka Text", "Iowan Old Style", Cambria, Georgia, serif);
+  }
+
+  .field > span {
+    @apply text-xs font-medium text-zinc-600 dark:text-zinc-400;
+  }
+
+  .field input,
+  .field textarea,
+  .field select {
+    @apply rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900;
+  }
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "id": 93,
+    "sha": "18f3e63d05582537db6d183d9d557be09e1f90c8",
+    "ref": "main",
+    "status": "success",
+    "name": "pages",
+    "target_url": "https://gitlab.com/group/blog/-/jobs/7001",
+    "description": null,
+    "created_at": "2026-10-03T09:02:11.200Z",
+    "started_at": "2026-10-03T09:02:15.000Z",
+    "finished_at": "2026-10-03T09:03:40.400Z",
+    "allow_failure": false,
+    "coverage": null,
+    "pipeline_id": 1200,
+    "author": { "id": 1, "username": "writer", "name": "Writer", "state": "active" }
+  },
+  {
+    "id": 94,
+    "sha": "18f3e63d05582537db6d183d9d557be09e1f90c8",
+    "ref": "main",
+    "status": "failed",
+    "name": "lint",
+    "target_url": "https://gitlab.com/group/blog/-/jobs/7002",
+    "description": null,
+    "allow_failure": true,
+    "coverage": null,
+    "pipeline_id": 1200
+  },
+  {
+    "id": 95,
+    "sha": "18f3e63d05582537db6d183d9d557be09e1f90c8",
+    "ref": "main",
+    "status": "manual",
+    "name": "deploy:production",
+    "target_url": "https://gitlab.com/group/blog/-/jobs/7003",
+    "description": null,
+    "allow_failure": false,
+    "pipeline_id": 1200
+  },
+  {
+    "id": 96,
+    "sha": "18f3e63d05582537db6d183d9d557be09e1f90c8",
+    "ref": "main",
+    "status": "running",
+    "name": "netlify/blog/deploy-preview",
+    "target_url": "https://app.netlify.com/sites/blog/deploys/abc",
+    "description": "Deploy in progress",
+    "allow_failure": false
+  },
+  {
+    "id": 97,
+    "sha": "18f3e63d05582537db6d183d9d557be09e1f90c8",
+    "ref": "main",
+    "status": "created",
+    "name": "pages:deploy",
+    "target_url": "",
+    "description": null,
+    "allow_failure": false,
+    "pipeline_id": 1201
+  }
+]

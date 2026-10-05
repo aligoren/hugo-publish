@@ -1,0 +1,132 @@
+# Builds and tests Hugo Publisher on Windows, macOS and Linux on every push and pull request.
+# The maintainers develop on Windows; macOS and Linux are covered here.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request cancels the run that is still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Hugo used by the Rust integration tests (extended edition).
+  HUGO_VERSION: 0.167.0
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-22.04 (not -latest) matches the release build: an older glibc runs on more distros.
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash # Git Bash on Windows, so every step reads the same on all three runners
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # rustup is preinstalled on the runners; it reads rust-toolchain.toml
+      # (pinned channel, profile, rustfmt + clippy).
+      - name: Install Rust toolchain from rust-toolchain.toml
+        run: |
+          rustup toolchain install
+          rustup component add rustfmt clippy
+          rustup show active-toolchain
+          cargo --version && cargo fmt --version && cargo clippy --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      # https://v2.tauri.app/start/prerequisites/#linux (Debian/Ubuntu)
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
+      # Official release archive, verified against Hugo's published checksums.
+      # macOS releases are only .pkg since v0.153; the binary is extracted without installing.
+      - name: Install Hugo extended ${{ env.HUGO_VERSION }}
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            Linux)   asset="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz" ;;
+            Windows) asset="hugo_extended_${HUGO_VERSION}_windows-amd64.zip" ;;
+            macOS)   asset="hugo_extended_${HUGO_VERSION}_darwin-universal.pkg" ;;
+          esac
+          base="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -O "$base/$asset" -O "$base/hugo_${HUGO_VERSION}_checksums.txt"
+          grep " ${asset}\$" "hugo_${HUGO_VERSION}_checksums.txt" > hugo.sha256
+          if command -v sha256sum >/dev/null; then sha256sum -c hugo.sha256; else shasum -a 256 -c hugo.sha256; fi
+          mkdir -p hugo-bin
+          case "$RUNNER_OS" in
+            Linux)   tar -xzf "$asset" -C hugo-bin hugo ;;
+            Windows) unzip -q "$asset" hugo.exe -d hugo-bin ;;
+            macOS)   pkgutil --expand-full "$asset" hugo-pkg
+                     find hugo-pkg -type f -name hugo -perm -u+x -exec cp {} hugo-bin/ \; ;;
+          esac
+          bin="$PWD/hugo-bin"
+          if [ "$RUNNER_OS" = Windows ]; then bin=$(cygpath -w "$bin"); fi
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - name: Check Hugo
+        run: |
+          hugo version
+          hugo version | grep -q "v${HUGO_VERSION}" && hugo version | grep -q '+extended'
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Front-end tests (Vitest)
+        run: npm test
+
+      # The Rust crate embeds dist/, so build the front end before compiling it.
+      - name: Build front end
+        run: npm run build
+
+      - name: cargo fmt
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: cargo test (with real Hugo and git)
+        working-directory: src-tauri
+        env:
+          # Fail instead of skipping when the integration tests cannot find hugo.
+          HUGO_PUBLISHER_REQUIRE_HUGO: '1'
+        run: cargo test --locked
+
+      # Compiles the whole app the way `tauri build` does (front end + embedded assets),
+      # without packaging installers. Debug profile keeps it fast; release.yml does the real bundles.
+      - name: Compile the app (tauri build --debug --no-bundle)
+        run: npx tauri build --debug --no-bundle -- --locked

@@ -1,0 +1,42 @@
+{
+  "state": "pending",
+  "sha": "18f3e63d05582537db6d183d9d557be09e1f90c8",
+  "total_count": 4,
+  "statuses": [
+    {
+      "id": 501,
+      "status": "success",
+      "target_url": "https://codeberg.org/ali/blog/actions/runs/88/jobs/0",
+      "description": "Successful in 41s",
+      "url": "https://codeberg.org/api/v1/repos/ali/blog/statuses/18f3e63d05582537db6d183d9d557be09e1f90c8",
+      "context": "build / hugo (push)",
+      "creator": { "id": 7, "login": "ali" },
+      "created_at": "2026-10-03T09:02:11+02:00",
+      "updated_at": "2026-10-03T09:03:00+02:00"
+    },
+    {
+      "id": 502,
+      "status": "pending",
+      "target_url": "https://ci.codeberg.org/repos/12/pipeline/4",
+      "description": "Pipeline is pending",
+      "context": "ci/woodpecker/push/pages"
+    },
+    {
+      "id": 503,
+      "status": "warning",
+      "target_url": "",
+      "description": "Links checked with warnings",
+      "context": "links"
+    },
+    {
+      "id": 504,
+      "status": "error",
+      "target_url": "https://example.net/deploys/9",
+      "description": "Deploy failed",
+      "context": "deploy"
+    }
+  ],
+  "repository": { "id": 12, "full_name": "ali/blog", "private": false },
+  "commit_url": "https://codeberg.org/api/v1/repos/ali/blog/commits/18f3e63d05582537db6d183d9d557be09e1f90c8",
+  "url": "https://codeberg.org/api/v1/repos/ali/blog/commits/18f3e63d05582537db6d183d9d557be09e1f90c8/status"
+}

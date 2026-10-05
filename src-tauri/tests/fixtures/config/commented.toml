@@ -1,0 +1,52 @@
+baseURL = "https://example.org/"
+locale = "tr"  # eski adı: languageCode
+defaultContentLanguage = "tr"
+title = "Örnek Site"
+theme = "ornek-tema"
+
+# Türkçe harfler adreste sadeleşsin: "gündem" -> "gundem".
+removePathAccents = true
+enableRobotsTXT = true
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+[markup.goldmark.renderer]
+  # Ham HTML bloklarına izin ver.
+  unsafe = true
+
+[params]
+  description = "Notlar ve yazılar."
+  mainSections = ["yazilar"]
+  defaultTheme = "light"
+  ShowReadingTime = true
+  ShowWordCount = false
+
+  [params.homeInfoParams]
+    Title = "Örnek Site"
+    Content = "Hoş geldiniz."
+
+# Üst menü yalnızca aşağıdaki girdilerden oluşur.
+[menu]
+  [[menu.main]]
+    identifier = "hakkinda"
+    name = "Hakkında"
+    url = "/hakkinda/"
+    weight = 100
+
+  # Örnek: bir kategori sayfasını menüye eklemek için aşağıdaki satırların
+  # başındaki "#" işaretlerini kaldırın.
+  # [[menu.main]]
+  #   identifier = "notlar"
+  #   name = "Notlar"
+  #   url = "/categories/notlar/"
+  #   weight = 10
+
+[outputFormats.llms]
+  mediaType = "text/plain"
+  baseName = "llms"
+  isPlainText = true
+
+[outputs]
+  home = ["HTML", "RSS", "llms"]

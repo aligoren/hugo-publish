@@ -1,0 +1,207 @@
+# Builds the installers for a version tag and attaches them to a DRAFT GitHub release.
+#
+# Releases are unsigned on purpose (no paid certificate). Trust comes from this public workflow,
+# SHA256SUMS.txt and GitHub build-provenance attestations
+# (`gh attestation verify <file> --repo <owner>/hugo-publish`).
+#
+# Once per repository: add the secrets TAURI_SIGNING_PRIVATE_KEY (content of the updater key file)
+# and TAURI_SIGNING_PRIVATE_KEY_PASSWORD (empty if none); see the build step below.
+#
+# To release: set the version in src-tauri/tauri.conf.json (plus Cargo.toml and package.json),
+# commit, then `git tag v0.1.0 && git push origin v0.1.0`. When the run is green, open the draft
+# on GitHub, write the notes and publish it. Installed apps find the update through
+# releases/latest/download/latest.json, so only published (not draft or pre-release) versions are offered.
+#
+# Note: MSI only accepts numeric pre-release versions (1.2.0-1 works, 1.2.0-beta.1 does not).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+# Never cancel a release build half-way.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The draft is created once, up front. If each build job created it (tauri-action looks the
+  # draft up by tag and creates it when missing), two jobs finishing together could make two drafts.
+  draft:
+    name: create draft release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release-id: ${{ steps.draft.outputs.release-id }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check that the tag matches the app version
+        run: |
+          version=$(jq -r .version src-tauri/tauri.conf.json)
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match version \"$version\" in src-tauri/tauri.conf.json"
+            exit 1
+          fi
+
+      - name: Create the draft release (or reuse it when re-running)
+        id: draft
+        run: |
+          set -euo pipefail
+          if is_draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$is_draft" != true ]; then
+              echo "::error::Release $TAG is already published; not touching it."
+              exit 1
+            fi
+            echo "Reusing the existing draft release for $TAG."
+          else
+            prerelease=()
+            case "$TAG" in *-*) prerelease=(--prerelease) ;; esac # e.g. v0.2.0-1
+            cat > "$RUNNER_TEMP/notes.md" <<EOF
+          _Draft created by the release workflow. Write the release notes here, then publish._
+
+          **These builds are unsigned.** The [README](https://github.com/$GITHUB_REPOSITORY#readme) explains how to open them on Windows and macOS and how to verify a download with \`SHA256SUMS.txt\` and \`gh attestation verify <file> --repo $GITHUB_REPOSITORY\`.
+
+          macOS and Linux builds are **experimental**.
+          EOF
+            gh release create "$TAG" --draft --verify-tag "${prerelease[@]}" \
+              --title "Hugo Publisher $TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+          echo "release-id=$(gh release view "$TAG" --json databaseId --jq .databaseId)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build (${{ matrix.os }})
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --bundles nsis,msi
+            bundles: |
+              src-tauri/target/release/bundle/nsis/*.exe
+              src-tauri/target/release/bundle/msi/*.msi
+          # One universal app for Apple Silicon and Intel, ad-hoc signed
+          # (bundle.macOS.signingIdentity "-" in tauri.conf.json). Not notarized.
+          - os: macos-latest
+            args: --target universal-apple-darwin --bundles app,dmg
+            bundles: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+          # Ubuntu 22.04's older glibc lets the AppImage run on more distributions.
+          - os: ubuntu-22.04
+            args: --bundles appimage,deb,rpm
+            bundles: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/rpm/*.rpm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: write # upload the bundles to the draft release
+      id-token: write # sign the attestation (Sigstore)
+      attestations: write # store the attestation
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # No npm or Rust caches here: every release is built from a clean state.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install Rust toolchain from rust-toolchain.toml
+        run: |
+          rustup toolchain install
+          rustup show active-toolchain
+
+      - name: Add both macOS targets for the universal build
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      # https://v2.tauri.app/start/prerequisites/#linux, plus patchelf and xdg-utils for the AppImage.
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
+            patchelf xdg-utils
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Build and upload to the draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the updater files (.sig) and makes tauri-action upload latest.json, which the app's
+          # updater reads (plugins.updater in tauri.conf.json holds the public key).
+          # The private key was made with `npx tauri signer generate -w ~/.tauri/hugo-publisher.key`;
+          # keep an offline backup: without it, installed apps can no longer update themselves.
+          # Repository secrets: TAURI_SIGNING_PRIVATE_KEY (the key file's content) and
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD (empty when the key has no password).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ needs.draft.outputs.release-id }}
+          tagName: ${{ github.ref_name }}
+          # tauri.release.conf.json turns on the updater files (only here, so local builds need no key).
+          # Everything after `--` goes to cargo: --locked builds exactly what src-tauri/Cargo.lock says.
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json -- --locked
+
+      # Signed record of which commit and workflow produced these exact files.
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ matrix.bundles }}
+
+  checksums:
+    name: SHA256SUMS.txt
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload SHA256SUMS.txt
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Download every asset of the draft release
+        run: gh release download "$TAG" --dir assets
+
+      - name: Write SHA256SUMS.txt
+        working-directory: assets
+        run: |
+          rm -f SHA256SUMS.txt # left over from an earlier run of this job
+          sha256sum -- * > ../SHA256SUMS.txt
+          cat ../SHA256SUMS.txt
+
+      - name: Attest SHA256SUMS.txt
+        uses: actions/attest@v4
+        with:
+          subject-path: SHA256SUMS.txt
+
+      - name: Upload SHA256SUMS.txt to the draft release
+        run: gh release upload "$TAG" SHA256SUMS.txt --clobber

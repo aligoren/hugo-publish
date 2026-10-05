@@ -1,0 +1,52 @@
+[package]
+name = "hugo-publisher"
+version = "0.1.0"
+description = "A desktop app for writing, configuring and publishing Hugo sites"
+authors = ["Hugo Publisher contributors"]
+license = "MIT"
+repository = "https://github.com/aligoren/hugo-publish"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "hugo_publisher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1", features = [] }
+
+[dependencies]
+serde_json = { version = "1.0", features = ["preserve_order"] }
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-log = "2"
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time", "net"] }
+process-wrap = { version = "10.0.1", features = ["tokio1"] }
+toml_edit = "0.25"
+thiserror = "2.0.21"
+regex = "1.13.1"
+which = "8.0.6"
+tauri-plugin-dialog = "2.8.1"
+tauri-plugin-opener = "2.7.0"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+flate2 = "1.1.10"
+tar = "0.4.46"
+sha2 = "0.11.0"
+img-parts = "0.4.0"
+base64 = "0.23.1"
+tauri-plugin-notification = "2.5.1"
+tauri-plugin-store = "2.5.0"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+futures-util = "0.3.34"
+reqwest = { version = "0.13.5", features = ["json", "stream", "gzip"] }
+keyring = "4.2.0"
+tauri-plugin-updater = "2.13.1"
+tauri-plugin-process = "2.4.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[target.'cfg(windows)'.dependencies]
+# Same major as process-wrap's, so `CreationFlags` accepts our flag value.
+windows = { version = "0.62", features = ["Win32_System_Threading"] }
