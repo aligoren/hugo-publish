@@ -410,6 +410,7 @@ fn repo_path(path: &str) -> AppResult<String> {
     let trimmed = normalized.trim_start_matches("./");
     let inside = !trimmed.is_empty()
         && !trimmed.starts_with('/')
+        && !crate::site::has_drive_prefix(trimmed)
         && Path::new(trimmed)
             .components()
             .all(|c| matches!(c, Component::Normal(_) | Component::CurDir))

@@ -85,11 +85,19 @@ pub fn open(path: &Path) -> AppResult<SiteInfo> {
     })
 }
 
+/// `C:` or `C:\…`: a Windows drive, never a path inside the site. Refused on every platform,
+/// because on Linux and macOS `C:\x` would otherwise pass as an ordinary file name.
+pub(crate) fn has_drive_prefix(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+}
+
 /// Resolves a site-relative path, refusing anything that could leave the site folder.
 pub fn resolve(root: &Path, relative: &str) -> AppResult<PathBuf> {
     let outside = || AppError::PathOutsideSite(relative.to_string());
     let candidate = Path::new(relative);
     if relative.is_empty()
+        || has_drive_prefix(relative)
         || candidate
             .components()
             .any(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
@@ -102,7 +110,10 @@ pub fn resolve(root: &Path, relative: &str) -> AppResult<PathBuf> {
     while !existing.exists() {
         existing = existing.parent().ok_or_else(outside)?;
     }
-    if !dunce_canonicalize(existing)?.starts_with(root) {
+    // Compared with the root's real location: a root given as a short (8.3) or linked path
+    // would otherwise never match the canonical form of the files inside it.
+    let real_root = dunce_canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    if !dunce_canonicalize(existing)?.starts_with(&real_root) {
         return Err(outside());
     }
     Ok(joined)
